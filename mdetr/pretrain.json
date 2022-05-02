@@ -1,0 +1,13 @@
+{
+    "combine_datasets": ["flickr", "mixed"],
+    "combine_datasets_val": ["gqa", "flickr", "refexp"],
+    "coco_path": "/private/home/rbh/mdetr/coco_2014",
+    "vg_img_path": "/private/home/rbh/mdetr/images",
+    "flickr_img_path": "/private/home/rbh/mdetr/flickr30k-images",
+    "refexp_ann_path": "/private/home/rbh/mdetr/mdetr_annotations",
+    "flickr_ann_path": "/private/home/rbh/mdetr/mdetr_annotations",
+    "gqa_ann_path": "/private/home/rbh/mdetr/mdetr_annotations",
+    "refexp_dataset_name": "all",
+    "GT_type": "separate",
+    "flickr_dataset_path": "/private/home/rbh/mdetr/flickr30k_entities"
+}

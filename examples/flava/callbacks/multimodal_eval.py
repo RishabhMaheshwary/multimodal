@@ -8,7 +8,10 @@ import logging
 
 import torch
 from data import default_text_transform, VL_MAX_LENGTH_DEFAULT
-from imagenet_zeroshot_data import imagenet_classnames, openai_imagenet_template
+from examples.flava.data.imagenet_zeroshot_data import (
+    imagenet_classnames,
+    openai_imagenet_template,
+)
 from pytorch_lightning import Callback, LightningDataModule
 from pytorch_lightning.utilities import rank_zero_only
 from tqdm import tqdm
