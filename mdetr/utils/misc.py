@@ -16,10 +16,6 @@ import torch
 from torch import Tensor
 
 
-def is_main_process():
-    return get_rank() == 0
-
-
 def get_sha():
     cwd = os.path.dirname(os.path.abspath(__file__))
 

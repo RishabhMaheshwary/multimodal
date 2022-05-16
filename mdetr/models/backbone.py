@@ -15,7 +15,7 @@ import torchtext
 import torchvision
 from torch import nn
 from torchvision.models._utils import IntermediateLayerGetter
-from utils.misc import NestedTensor, is_main_process
+from utils.misc import NestedTensor
 
 from .position_encoding import build_position_encoding
 
@@ -119,7 +119,7 @@ class Backbone(BackboneBase):
     ):
         backbone = getattr(torchvision.models, name)(
             replace_stride_with_dilation=[False, False, dilation],
-            pretrained=is_main_process(),
+            pretrained=True,
             norm_layer=FrozenBatchNorm2d,
         )
         num_channels = 512 if name in ("resnet18", "resnet34") else 2048

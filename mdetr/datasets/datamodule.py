@@ -8,13 +8,13 @@ from functools import partial
 
 import torch
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import ConcatDataset, DistributedSampler
-from torch.utils.data import DataLoader
+from torch.utils.data import ConcatDataset, DataLoader, DistributedSampler
+
+# from utils.tokenizer import RobertaTransform
 from transformers import RobertaTokenizerFast
 from utils.misc import collate_fn
 
-from .coco import build as build_coco
-from .coco import make_coco_transforms
+from .coco import build as build_coco, make_coco_transforms
 from .flickr import build as build_flickr
 from .mixed import build as build_mixed
 
@@ -55,9 +55,9 @@ class CocoDataModule(LightningDataModule):
         if self.distributed:
             self.train = DistributedSampler(self.train)
         else:
-            self.train = torch.utils.data.RandomSampler(self.train)
+            train_sampler = torch.utils.data.RandomSampler(self.train)
         batch_sampler_train = torch.utils.data.BatchSampler(
-            self.train, self.batch_size, drop_last=True
+            train_sampler, self.batch_size, drop_last=True
         )
         data_loader_train = DataLoader(
             self.train,

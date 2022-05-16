@@ -6,6 +6,7 @@
 
 
 from .coco import build as build_coco
+from .datamodule import CocoDataModule
 from .flickr import build as build_flickr
 from .mixed import build as build_mixed
 

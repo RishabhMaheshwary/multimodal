@@ -19,43 +19,9 @@ import torch.utils
 from datasets import CocoDataModule
 
 # from engine import evaluate, train_one_epoch
-# from models import build_model
-
-
-def get_args_parser():
-
-    parser = argparse.ArgumentParser("Set transformer detector", add_help=False)
-    parser.add_argument("--dataset_config", default=None, required=True)
-    parser.add_argument("--output_dir", default=None, required=True)
-    parser.add_argument("--masks", action="store_true")
-    parser.add_argument("--vg_img_path", type=str, default="")
-    parser.add_argument("--text_encoder_type", type=str, default="roberta-base")
-    parser.add_argument("--vg_ann_path", type=str, default="")
-    parser.add_argument("--clevr_img_path", type=str, default="")
-    parser.add_argument("--seed", default=42, type=int)
-    parser.add_argument("--batch_size", default=2, type=int)
-    parser.add_argument(
-        "--test",
-        action="store_true",
-        help="Whether to run evaluation on val or test set",
-    )
-    parser.add_argument("--clevr_ann_path", type=str, default="")
-    parser.add_argument("--phrasecut_ann_path", type=str, default="")
-    parser.add_argument(
-        "--phrasecut_orig_ann_path",
-        type=str,
-        default="",
-    )
-    parser.add_argument(
-        "--world-size", default=1, type=int, help="number of distributed processes"
-    )
-    parser.add_argument(
-        "--dist-url", default="env://", help="url used to set up distributed training"
-    )
-    parser.add_argument(
-        "--device", default="cuda", help="device to use for training / testing"
-    )
-    return parser
+from models import build_model
+from utils.args_parse import get_args_parser
+from utils.misc import targets_to
 
 
 def init_distributed_mode(args):
@@ -83,6 +49,32 @@ def init_distributed_mode(args):
     # setup_for_distributed(args.rank == 0)
 
 
+def train(model, dataloader, device):
+    model.train()
+    # for batch_dict in dataloader:
+    for i, batch_dict in enumerate(dataloader):
+        # curr_step = epoch * len(data_loader) + i
+        samples = batch_dict["samples"].to(device)
+        positive_map = (
+            batch_dict["positive_map"].to(device)
+            if "positive_map" in batch_dict
+            else None
+        )
+        targets = batch_dict["targets"]
+        answers = (
+            {k: v.to(device) for k, v in batch_dict["answers"].items()}
+            if "answers" in batch_dict
+            else None
+        )
+        captions = [t["caption"] for t in targets]
+
+        targets = targets_to(targets, device)
+        memory_cache = model(samples, captions, encode_and_save=True)
+        outputs = model(
+            samples, captions, encode_and_save=False, memory_cache=memory_cache
+        )
+
+
 def main(args):
 
     if args.dataset_config is not None:
@@ -106,7 +98,14 @@ def main(args):
     dm = CocoDataModule(args, distributed=args.distributed)
     dm.prepare_data()
     dm.setup()
-    dm.train_dataloader()
+    data_loader = dm.train_dataloader()
+    model = build_model(args)
+    model.to(device)
+    if args.distributed:
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[args.gpu], find_unused_parameters=True
+        )
+    train(model, data_loader, device)
     # dataset_train = ConcatDataset(
     #     [build_dataset(name, image_set="train", args=args) for name in args.combine_datasets]
     # )
