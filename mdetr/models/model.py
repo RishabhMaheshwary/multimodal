@@ -13,6 +13,8 @@ from transformers import RobertaModel, RobertaTokenizerFast
 from utils.misc import NestedTensor
 
 from .backbone import build_backbone, build_text_backbone
+from .losses import ContrastiveCriterion, MdetrPretrainingLosses
+from .matcher import build_matcher
 from .transformer import build_transformer
 
 
@@ -26,7 +28,7 @@ class MDETR(nn.Module):
         transformer,
         d_model=512,
         text_encoder_type="roberta-base",
-        num_classes=92,
+        num_classes=255,
         num_queries=100,
         aux_loss=False,
         contrastive_hdim=64,
@@ -44,6 +46,7 @@ class MDETR(nn.Module):
         # self.text_encoder = roberta
         self.text_encoder = RobertaModel.from_pretrained(text_encoder_type)
         self.tokenizer = RobertaTokenizerFast.from_pretrained(text_encoder_type)
+        self.aux_loss = aux_loss
         self.expander_dropout = 0.1
         self.resizer = FeatureResizer(
             input_feat_size=self.text_encoder.config.hidden_size,
@@ -51,7 +54,7 @@ class MDETR(nn.Module):
             dropout=self.expander_dropout,
         )
         self.transformer = transformer
-        self.CLS = nn.Embedding(1, d_model) if contrastive_loss else None
+        self.CLS = nn.Embedding(1, d_model) if contrastive_loss is not None else None
         self.input_proj = nn.Conv2d(
             self.backbone.num_channels, hidden_dim, kernel_size=1
         )
@@ -62,17 +65,17 @@ class MDETR(nn.Module):
         self.query_embed = nn.Embedding(num_queries, hidden_dim)
 
         self.contrastive_loss = contrastive_loss
-        if contrastive_loss:
+        if contrastive_loss is not None:
             self.contrastive_projection_image = nn.Linear(
                 hidden_dim, contrastive_hdim, bias=False
             )
             self.contrastive_projection_text = nn.Linear(
-                self.transformer.text_encoder.config.hidden_size,
+                self.text_encoder.config.hidden_size,
                 contrastive_hdim,
                 bias=False,
             )
         self.contrastive_align_loss = contrastive_align_loss
-        if contrastive_align_loss:
+        if contrastive_align_loss is not None:
             self.contrastive_align_projection_image = nn.Linear(
                 hidden_dim, contrastive_hdim
             )
@@ -80,7 +83,16 @@ class MDETR(nn.Module):
                 hidden_dim, contrastive_hdim
             )
 
-    def forward(self, samples, captions, encode_and_save=True, memory_cache=None):
+    def forward(
+        self,
+        samples,
+        targets,
+        positive_map,
+        captions,
+        encode_and_save=True,
+        memory_cache=None,
+        training=True,
+    ):
 
         if not isinstance(samples, NestedTensor):
             samples = NestedTensor.from_tensor_list(samples)
@@ -111,7 +123,7 @@ class MDETR(nn.Module):
 
                 cls_pad = torch.zeros(bs, 1).bool().to(device)
                 mask = torch.cat((cls_pad, mask), dim=1)
-            # breakpoint()
+
             tokenized = self.tokenizer.batch_encode_plus(
                 captions, padding="longest", return_tensors="pt"
             ).to(device)
@@ -155,8 +167,15 @@ class MDETR(nn.Module):
                     else None,  # Return the CLS token
                 }
             )
+            if self.contrastive_loss:
+                memory_cache["text_pooled_op"] = self.contrastive_projection_text(
+                    memory_cache["text_pooled_op"]
+                )
+                memory_cache["img_pooled_op"] = self.contrastive_projection_image(
+                    memory_cache["img_pooled_op"]
+                )
+
             out = {}
-            breakpoint()
             outputs_class = self.class_embed(hs)
             outputs_coord = self.bbox_embed(hs).sigmoid()
             out.update(
@@ -215,7 +234,8 @@ class MDETR(nn.Module):
                     assert len(outputs_isfinal[:-1]) == len(out["aux_outputs"])
                     for i in range(len(outputs_isfinal[:-1])):
                         out["aux_outputs"][i]["pred_isfinal"] = outputs_isfinal[i]
-            return out
+
+            return out, memory_cache
 
 
 class MLP(nn.Module):
@@ -276,7 +296,40 @@ def build_model(args):
     backbone_vision = build_backbone(args)
     roberta = build_text_backbone(args)
     transformer = build_transformer(args)
-    model = MDETR(
-        backbone_vision, roberta, transformer, text_encoder_type=args.text_encoder_type
+    matcher = build_matcher(args)
+    weight_dict = {"loss_ce": args.ce_loss_coef, "loss_bbox": args.bbox_loss_coef}
+    if args.contrastive_loss:
+        weight_dict["contrastive_loss"] = args.contrastive_loss_coef
+    if args.contrastive_align_loss:
+        weight_dict["loss_contrastive_align"] = args.contrastive_align_loss_coef
+    if args.predict_final:
+        weight_dict["loss_isfinal"] = 1
+
+    weight_dict["loss_giou"] = args.giou_loss_coef
+    losses_to_calculate = ["labels", "boxes", "cardinality"]
+    if args.contrastive_align_loss:
+        losses_to_calculate += ["contrastive_align"]
+
+    losses = MdetrPretrainingLosses(
+        matcher=matcher,
+        eos_coef=args.eos_coef,
+        losses=losses_to_calculate,
+        temperature=args.temperature_NCE,
     )
-    return model
+    if args.contrastive_loss:
+        contrastive_criterion = ContrastiveCriterion(temperature=args.temperature_NCE)
+        contrastive_criterion.to(device)
+    else:
+        contrastive_criterion = None
+    losses.to(torch.device(args.device))
+    model = MDETR(
+        backbone_vision,
+        roberta,
+        transformer,
+        contrastive_loss=args.contrastive_loss,
+        contrastive_align_loss=args.contrastive_align_loss,
+        text_encoder_type=args.text_encoder_type,
+        aux_loss=args.aux_loss,
+        d_model=args.hidden_dim,
+    )
+    return model, losses, contrastive_criterion, weight_dict

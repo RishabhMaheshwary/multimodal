@@ -23,6 +23,7 @@ class Transformer(nn.Module):
         dropout=0.1,
         activation="relu",
         normalize_before=False,
+        return_intermediate_dec=False,
         pass_pos_and_query=True,
         text_encoder_type="roberta-base",
         freeze_text_encoder=False,
@@ -44,7 +45,10 @@ class Transformer(nn.Module):
         )
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = TransformerDecoder(
-            decoder_layer, num_decoder_layers, decoder_norm
+            decoder_layer,
+            num_decoder_layers,
+            decoder_norm,
+            return_intermediate=return_intermediate_dec,
         )
 
         self._reset_parameters()
@@ -147,11 +151,12 @@ class TransformerEncoder(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, decoder_layer, num_layers, norm=None):
+    def __init__(self, decoder_layer, num_layers, norm=None, return_intermediate=False):
         super().__init__()
         self.layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
         self.norm = norm
+        self.return_intermediate = return_intermediate
 
     def forward(
         self,
@@ -168,6 +173,8 @@ class TransformerDecoder(nn.Module):
     ):
         output = tgt
 
+        intermediate = []
+
         for layer in self.layers:
             output = layer(
                 output,
@@ -181,9 +188,17 @@ class TransformerDecoder(nn.Module):
                 pos=pos,
                 query_pos=query_pos,
             )
+            if self.return_intermediate:
+                intermediate.append(self.norm(output))
 
         if self.norm is not None:
             output = self.norm(output)
+            if self.return_intermediate:
+                intermediate.pop()
+                intermediate.append(output)
+
+        if self.return_intermediate:
+            return torch.stack(intermediate)
 
         return output
 
@@ -363,6 +378,7 @@ def build_transformer(args):
         num_encoder_layers=args.enc_layers,
         num_decoder_layers=args.dec_layers,
         normalize_before=args.pre_norm,
+        return_intermediate_dec=True,
         pass_pos_and_query=args.pass_pos_and_query,
         text_encoder_type=args.text_encoder_type,
         freeze_text_encoder=args.freeze_text_encoder,

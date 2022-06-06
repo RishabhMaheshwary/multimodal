@@ -53,7 +53,7 @@ class CocoDataModule(LightningDataModule):
 
     def train_dataloader(self):
         if self.distributed:
-            self.train = DistributedSampler(self.train)
+            train_sampler = DistributedSampler(self.train)
         else:
             train_sampler = torch.utils.data.RandomSampler(self.train)
         batch_sampler_train = torch.utils.data.BatchSampler(
@@ -65,7 +65,7 @@ class CocoDataModule(LightningDataModule):
             collate_fn=partial(collate_fn, False),
             num_workers=self.num_workers,
         )
-        return data_loader_train
+        return data_loader_train, train_sampler
 
     # def val_dataloader(self):
     #     return DataLoader(self.mnist_val, batch_size=BATCH_SIZE)
