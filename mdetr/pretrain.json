@@ -1,6 +1,6 @@
 {
     "combine_datasets": ["flickr", "mixed"],
-    "combine_datasets_val": ["gqa", "flickr", "refexp"],
+    "combine_datasets_val": ["flickr"],
     "coco_path": "/private/home/rbh/mdetr/coco_2014",
     "vg_img_path": "/private/home/rbh/mdetr/images",
     "flickr_img_path": "/private/home/rbh/mdetr/flickr30k-images",

@@ -5,12 +5,9 @@
 # LICENSE file in the root directory of this source tree.
 
 import torchvision
-from data import (
-    TorchVisionDataModule,
-    TorchVisionDatasetInfo,
-)
+from data import TorchVisionDataModule, TorchVisionDatasetInfo
 from model import FLAVAClassificationLightningModule
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
 
 AVAIL_GPUS = 1

@@ -18,7 +18,9 @@ def get_args_parser():
         choices=("sine", "learned"),
         help="Type of positional embedding to use on top of the image features",
     )
-
+    parser.add_argument(
+        "--no_detection", action="store_true", help="Whether to train the detector"
+    )
     # Transformer
     parser.add_argument(
         "--enc_layers",
@@ -189,6 +191,13 @@ def get_args_parser():
         type=int,
         help='do evaluation every "eval_skip" frames',
     )
+
+    parser.add_argument("--resume", default="", help="resume from checkpoint")
+    parser.add_argument("--load", default="", help="resume from checkpoint")
+    parser.add_argument(
+        "--start-epoch", default=0, type=int, metavar="N", help="start epoch"
+    )
+    parser.add_argument("--eval", action="store_true", help="Only run evaluation")
 
     parser.add_argument(
         "--schedule",

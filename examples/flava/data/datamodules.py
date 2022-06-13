@@ -14,9 +14,9 @@ from pytorch_lightning import LightningDataModule
 from torchvision.datasets import ImageFolder
 from transformers import (
     BertTokenizer,
-    DefaultDataCollator,
     DataCollatorForLanguageModeling,
     DataCollatorForWholeWordMask,
+    DefaultDataCollator,
     TRANSFORMERS_CACHE,
 )
 
@@ -27,8 +27,8 @@ from .transforms import (
     default_torchvision_transforms,
     encode_text_batch,
     pad_batch,
-    VLTransform,
     VL_MAX_LENGTH_DEFAULT,
+    VLTransform,
 )
 from .utils import build_datasets_from_info, fetch_images
 

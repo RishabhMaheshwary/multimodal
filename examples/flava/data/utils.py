@@ -7,7 +7,7 @@
 from typing import List
 
 import requests
-from datasets import load_dataset, concatenate_datasets
+from datasets import concatenate_datasets, load_dataset
 from datasets.utils.file_utils import get_datasets_user_agent
 from PIL import Image, UnidentifiedImageError
 

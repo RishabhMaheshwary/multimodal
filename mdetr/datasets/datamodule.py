@@ -30,28 +30,32 @@ class CocoDataModule(LightningDataModule):
         self.num_workers = 0
         self.train, self.val = None, None
 
-    def prepare_data(self):
-        print("prepare")
-        # download
+    def combine_sets(self, image_set, combine_datasets):
 
-    def setup(self):
-        train = []
-        image_set = "train"
-        for data in self.dataset_config.combine_datasets:
+        datasets = []
+        for data in combine_datasets:
             if data == "coco":
-                dataset = build_coco("train", self.dataset_config)
+                dataset = build_coco(image_set, self.dataset_config)
             elif data == "flickr":
                 dataset = build_flickr(
-                    "train", self.dataset_config, self.tokenizer, self.transforms
+                    image_set, self.dataset_config, self.tokenizer, self.transforms
                 )
             elif data == "mixed":
                 dataset = build_mixed(
-                    "train", self.dataset_config, self.tokenizer, self.transforms
+                    image_set, self.dataset_config, self.tokenizer, self.transforms
                 )
-            train.append(dataset)
+            datasets.append(dataset)
+        return datasets
+
+    def setup(self):
+
+        train = self.combine_sets("train", self.dataset_config.combine_datasets)
         self.train = ConcatDataset(train)
+        val = self.combine_sets("val", self.dataset_config.combine_datasets_val)
+        self.val = ConcatDataset(val)
 
     def train_dataloader(self):
+
         if self.distributed:
             train_sampler = DistributedSampler(self.train)
         else:
@@ -67,8 +71,21 @@ class CocoDataModule(LightningDataModule):
         )
         return data_loader_train, train_sampler
 
-    # def val_dataloader(self):
-    #     return DataLoader(self.mnist_val, batch_size=BATCH_SIZE)
+    def val_dataloader(self):
+
+        if self.distributed:
+            sampler = DistributedSampler(self.val, shuffle=False)
+        else:
+            sampler = torch.utils.data.SequentialSampler(self.val)
+
+        data_loader_val = DataLoader(
+            self.val,
+            sampler=sampler,
+            drop_last=False,
+            collate_fn=partial(collate_fn, False),
+            num_workers=self.num_workers,
+        )
+        return data_loader_val, sampler, self.val
 
     # def test_dataloader(self):
     #     return DataLoader(self.mnist_test, batch_size=BATCH_SIZE)

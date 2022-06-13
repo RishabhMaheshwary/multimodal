@@ -5,3 +5,4 @@
 # LICENSE file in the root directory of this source tree.
 
 from .model import build_model
+from .postprocessors import build_postprocessors

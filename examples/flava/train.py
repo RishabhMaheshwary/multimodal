@@ -13,7 +13,7 @@ from data import (
 )
 from examples.flava.callbacks.multimodal_eval import MultimodalEvalCallback
 from model import FLAVALightningModule
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
 
 

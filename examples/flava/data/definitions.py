@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 

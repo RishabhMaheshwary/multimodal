@@ -22,8 +22,8 @@ from pytorch_lightning import LightningDataModule
 from torchvision.datasets import ImageFolder
 from transformers import (
     BertTokenizer,
-    DefaultDataCollator,
     DataCollatorForLanguageModeling,
+    DefaultDataCollator,
     TRANSFORMERS_CACHE,
 )
 from transforms import (
